@@ -1,0 +1,1701 @@
+Binary files lustre_backup/.aclocal.m4.swp and lustre-release/.aclocal.m4.swp differ
+diff -urN lustre_backup/ldiskfs/kernel_patches/patches/rhel6.4/ext4-rat.patch lustre-release/ldiskfs/kernel_patches/patches/rhel6.4/ext4-rat.patch
+--- lustre_backup/ldiskfs/kernel_patches/patches/rhel6.4/ext4-rat.patch	1969-12-31 18:00:00.000000000 -0600
++++ lustre-release/ldiskfs/kernel_patches/patches/rhel6.4/ext4-rat.patch	2014-01-28 16:09:14.918208367 -0600
+@@ -0,0 +1,134 @@
++===================================================================
++--- linux-stage.orig/fs/ext4/super.c
+++++ linux-stage/fs/ext4/super.c
++@@ -347,15 +347,33 @@
++ 			sb->s_id);
++ }
++ 
+++#define CONFIG_VPRINK2
+++static inline void ext4_vprintk2(const char *fmt1, const char *fmt2, va_list args2, ...)
+++{
+++  va_list args1;
+++  va_start(args1, args2);
+++
+++#if defined(CONFIG_VPRINTK2)
+++  int vprintk2(const char *fmt1, va_list args1, 
+++	       const char *fmt2, va_list args2);
+++  vprintk2(fmt1, args1, fmt2, args2);
+++#else
+++  vprintk(fmt1,args1);
+++  vprintk(fmt2,args2);
+++#endif
+++
+++  va_end(args1);
+++}
+++
++ void __ext4_error(struct super_block *sb, const char *function,
++ 		const char *fmt, ...)
++ {
++ 	va_list args;
++ 
++ 	va_start(args, fmt);
++-	printk(KERN_CRIT "EXT4-fs error (device %s): %s: ", sb->s_id, function);
++-	vprintk(fmt, args);
++-	printk("\n");
+++
+++	ext4_vprintk2(KERN_CRIT "EXT4-fs error (device %s): %s: ", 
+++		      fmt, args, sb->s_id, function);
++ 	va_end(args);
++ 
++ 	ext4_handle_error(sb);
++@@ -367,10 +385,9 @@
++ 	va_list args;
++ 
++ 	va_start(args, fmt);
++-	printk(KERN_CRIT "EXT4-fs error (device %s): %s: inode #%lu: (comm %s) ",
++-	       inode->i_sb->s_id, function, inode->i_ino, current->comm);
++-	vprintk(fmt, args);
++-	printk("\n");
+++
+++	ext4_vprintk2(KERN_CRIT "EXT4-fs error (device %s): %s: inode #%lu: (comm %s) ", fmt, args, inode->i_sb->s_id, function, inode->i_ino, current->comm);
+++
++ 	va_end(args);
++ 
++ 	ext4_handle_error(inode->i_sb);
++@@ -387,11 +404,9 @@
++ 	path = d_path(&(file->f_path), pathname, sizeof(pathname));
++ 	if (!path)
++ 		path = "(unknown)";
++-	printk(KERN_CRIT
++-	       "EXT4-fs error (device %s): %s: inode #%lu (comm %s path %s): ",
++-	       inode->i_sb->s_id, function, inode->i_ino, current->comm, path);
++-	vprintk(fmt, args);
++-	printk("\n");
+++
+++	ext4_vprintk2(KERN_CRIT "EXT4-fs error (device %s): %s: inode #%lu (comm %s path %s): ", fmt, args, inode->i_sb->s_id, function, inode->i_ino, current->comm, path);
+++
++ 	va_end(args);
++ 
++ 	ext4_handle_error(inode->i_sb);
++@@ -469,9 +484,9 @@
++ 	va_list args;
++ 
++ 	va_start(args, fmt);
++-	printk(KERN_CRIT "EXT4-fs error (device %s): %s: ", sb->s_id, function);
++-	vprintk(fmt, args);
++-	printk("\n");
+++
+++	ext4_vprintk2(KERN_CRIT "EXT4-fs error (device %s): %s: ", fmt, args, sb->s_id, function);
+++
++ 	va_end(args);
++ 
++ 	if (test_opt(sb, ERRORS_PANIC))
++@@ -491,13 +506,11 @@
++ void ext4_msg (struct super_block * sb, const char *prefix,
++ 		   const char *fmt, ...)
++ {
++-	va_list args;
+++  va_list args;  
+++  va_start(args, fmt);
++ 
++-	va_start(args, fmt);
++-	printk("%sEXT4-fs (%s): ", prefix, sb->s_id);
++-	vprintk(fmt, args);
++-	printk("\n");
++-	va_end(args);
+++  ext4_vprintk2("%sEXT4-fs (%s): ", fmt, args, prefix, sb->s_id);
+++  va_end(args);
++ }
++ 
++ void __ext4_warning(struct super_block *sb, const char *function,
++@@ -506,10 +519,10 @@
++ 	va_list args;
++ 
++ 	va_start(args, fmt);
++-	printk(KERN_WARNING "EXT4-fs warning (device %s): %s: ",
++-	       sb->s_id, function);
++-	vprintk(fmt, args);
++-	printk("\n");
+++
+++	ext4_vprintk2(KERN_WARNING "EXT4-fs warning (device %s): %s: ", 
+++		      fmt, args, sb->s_id, function);
+++
++ 	va_end(args);
++ }
++ 
++@@ -522,9 +535,10 @@
++ 	struct ext4_super_block *es = EXT4_SB(sb)->s_es;
++ 
++ 	va_start(args, fmt);
++-	printk(KERN_CRIT "EXT4-fs error (device %s): %s: ", sb->s_id, function);
++-	vprintk(fmt, args);
++-	printk("\n");
+++
+++	ext4_vprintk2(KERN_CRIT "EXT4-fs error (device %s): %s: ", 
+++		      fmt, args, sb->s_id, function);
+++
++ 	va_end(args);
++ 
++ 	if (test_opt(sb, ERRORS_CONT)) {
++
++
++
++
++
+diff -urN lustre_backup/ldiskfs/kernel_patches/series/ldiskfs-2.6-rhel6.4.series lustre-release/ldiskfs/kernel_patches/series/ldiskfs-2.6-rhel6.4.series
+--- lustre_backup/ldiskfs/kernel_patches/series/ldiskfs-2.6-rhel6.4.series	2013-12-17 13:20:46.148185705 -0600
++++ lustre-release/ldiskfs/kernel_patches/series/ldiskfs-2.6-rhel6.4.series	2014-01-23 16:15:01.881241010 -0600
+@@ -13,6 +13,7 @@
+ rhel6.4/ext4-prealloc.patch
+ rhel6.3/ext4-mballoc-extra-checks.patch
+ rhel6.4/ext4-misc.patch
++rhel6.4/ext4-rat.patch
+ rhel6.3/ext4-big-endian-check-2.6.patch
+ rhel6.3/ext4-alloc-policy-2.6.patch
+ rhel6.3/ext4-force_over_128tb.patch
+diff -urN lustre_backup/libcfs/include/libcfs/libcfs_debug.h lustre-release/libcfs/include/libcfs/libcfs_debug.h
+--- lustre_backup/libcfs/include/libcfs/libcfs_debug.h	2013-12-17 13:20:46.150186706 -0600
++++ lustre-release/libcfs/include/libcfs/libcfs_debug.h	2014-01-06 10:56:30.405424723 -0600
+@@ -165,6 +165,7 @@
+ #define CDEBUG_DEFAULT_MAX_DELAY (cfs_time_seconds(600))         /* jiffies */
+ #define CDEBUG_DEFAULT_MIN_DELAY ((cfs_time_seconds(1) + 1) / 2) /* jiffies */
+ #define CDEBUG_DEFAULT_BACKOFF   2
++
+ typedef struct {
+         cfs_time_t      cdls_next;
+         unsigned int    cdls_delay;
+@@ -181,7 +182,7 @@
+ };
+ 
+ #define LIBCFS_DEBUG_MSG_DATA_INIT(data, mask, cdls)        \
+-do {                                                        \
++do {							    \
+         (data)->msg_subsys = DEBUG_SUBSYSTEM;               \
+         (data)->msg_file   = __FILE__;                      \
+         (data)->msg_fn     = __FUNCTION__;                  \
+@@ -199,6 +200,55 @@
+                .msg_cdls   = (cdls)         };              \
+         dataname.msg_mask   = (mask);
+ 
++
++static inline const char *cfs_debug_prio(int mask)
++{
++#if defined(__KERNEL__) && defined(__linux__)
++  if (mask & D_EMERG)
++   return KERN_EMERG;
++ else if (mask & D_ERROR)
++   return KERN_ERR;
++ else if (mask & D_WARNING)
++   return KERN_WARNING;
++ else if (mask & D_INFO)
++   return KERN_INFO;
++ else
++ return KERN_DEBUG;
++#else
++ return "";
++#endif
++}
++
++static inline int cfs_current_pid(void)
++{
++#if defined(__KERNEL__) && defined(__linux__)
++ return current->pid;
++#else
++ return 0;
++#endif
++}
++
++__attribute__((pure))
++static inline const char *cfs_basename(const char *path)
++{
++ const char *slash = strrchr(path, '/');
++ if (slash != NULL)
++ return slash + 1;
++ return path;
++}
++
++#define CFS_DEBUG_MASK(mask)				\
++  (((mask) & D_CANTMASK) != 0 ||			\
++   ((libcfs_debug & (mask)) != 0 &&			\
++    (libcfs_subsystem_debug & DEBUG_SUBSYSTEM) != 0))
++
++#define CFS_DEBUG_HDR_FMT "%sLustre: %d:(%s:%d:%s()) "
++
++#define CFS_DEBUG_ARGS(cdls, mask, fmt, args...)		\
++  cdls, DEBUG_SUBSYSTEM, mask, CFS_DEBUG_HDR_FMT fmt,		\
++    cfs_debug_prio(mask), cfs_current_pid(),			\
++    cfs_basename(__FILE__), __LINE__, __FUNCTION__, ##args
++
+ #if defined(__KERNEL__) || (defined(__arch_lib__) && !defined(LUSTRE_UTILS))
+ 
+ #ifdef CDEBUG_ENABLED
+@@ -209,31 +259,30 @@
+ static inline int cfs_cdebug_show(unsigned int mask, unsigned int subsystem)
+ {
+         return mask & D_CANTMASK ||
+-                ((libcfs_debug & mask) && (libcfs_subsystem_debug & subsystem));
++               ((libcfs_debug & mask) && (libcfs_subsystem_debug & subsystem));
+ }
+ 
+-#define __CDEBUG(cdls, mask, format, ...)                               \
+-do {                                                                    \
+-        static struct libcfs_debug_msg_data msgdata;                    \
+-                                                                        \
+-        CFS_CHECK_STACK(&msgdata, mask, cdls);                          \
+-                                                                        \
+-        if (cfs_cdebug_show(mask, DEBUG_SUBSYSTEM)) {                   \
+-                LIBCFS_DEBUG_MSG_DATA_INIT(&msgdata, mask, cdls);       \
+-                libcfs_debug_msg(&msgdata, format, ## __VA_ARGS__);     \
+-        }                                                               \
+-} while (0)
++#define __CDEBUG(cdls, mask, fmt, ...)					\
++  do {									\
++    static struct libcfs_debug_msg_data msgdata;			\
++    									\
++    if (CFS_DEBUG_MASK((mask)))	{					\
++      LIBCFS_DEBUG_MSG_DATA_INIT(&msgdata, mask, cdls);			\
++      libcfs_debug_msg(&msgdata, CFS_DEBUG_HDR_FMT fmt, cfs_debug_prio(mask), cfs_current_pid(), cfs_basename(__FILE__), __LINE__, __FUNCTION__, ## __VA_ARGS__); \
++    }									\
++  } while (0)
+ 
+ #define CDEBUG(mask, format, ...) __CDEBUG(NULL, mask, format, ## __VA_ARGS__)
+ 
+-#define CDEBUG_LIMIT(mask, format, ...)         \
+-do {                                            \
+-        static cfs_debug_limit_state_t cdls;    \
+-                                                \
+-        __CDEBUG(&cdls, mask, format, ## __VA_ARGS__);\
+-} while (0)
++#define CDEBUG_LIMIT(mask, format, ...)			\
++  do {							\
++    static cfs_debug_limit_state_t cdls;		\
++							\
++    __CDEBUG(&cdls, mask, format, ## __VA_ARGS__);	\
++  } while (0)
+ 
+ #else /* !CDEBUG_ENABLED */
++
+ static inline int cfs_cdebug_show(unsigned int mask, unsigned int subsystem)
+ {
+         return 0;
+@@ -370,12 +419,12 @@
+ 
+ extern int libcfs_debug_msg(struct libcfs_debug_msg_data *msgdata,
+                             const char *format1, ...)
+-        __attribute__ ((format (printf, 2, 3)));
++  __attribute__ ((format (printf, 2, 3)));
+ 
+-extern int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
+-                              const char *format1,
+-                              va_list args, const char *format2, ...)
+-        __attribute__ ((format (printf, 4, 5)));
++extern int libcfs_debug_msg2(struct libcfs_debug_msg_data *msgdata,
++			     const char *format1,
++			     va_list args, const char *format2, ...)
++  __attribute__ ((format (printf, 4, 5)));
+ 
+ /* other external symbols that tracefile provides: */
+ extern int cfs_trace_copyin_string(char *knl_buffer, int knl_buffer_nob,
+diff -urN lustre_backup/libcfs/include/libcfs/libcfs_private.h lustre-release/libcfs/include/libcfs/libcfs_private.h
+--- lustre_backup/libcfs/include/libcfs/libcfs_private.h	2013-12-17 13:20:46.152187704 -0600
++++ lustre-release/libcfs/include/libcfs/libcfs_private.h	2013-12-18 16:04:16.520703436 -0600
+@@ -58,9 +58,7 @@
+  * of equality check, but doesn't have unlikely(). Turn this on from time to
+  * time to make test-builds. This shouldn't be on for production release.
+  */
+-#define LASSERT_CHECKED (0)
+ 
+-#if LASSERT_CHECKED
+ /*
+  * Assertion.
+  *
+@@ -71,36 +69,22 @@
+  *
+  * requires -Wall. Unfortunately this rules out use of likely/unlikely.
+  */
+-#define LASSERTF(cond, fmt, ...)					\
+-do {									\
+-	if (cond)							\
+-		;							\
+-	else {								\
+-		LIBCFS_DEBUG_MSG_DATA_DECL(__msg_data, D_EMERG, NULL);	\
+-		libcfs_debug_msg(&__msg_data,				\
+-				 "ASSERTION( %s ) failed: " fmt, #cond,	\
+-				 ## __VA_ARGS__);			\
+-		lbug_with_loc(&__msg_data);				\
+-	}								\
+-} while (0)
+-
+-#define LASSERT(cond) LASSERTF(cond, "\n")
+-
+-#else /* !LASSERT_CHECKED */
++#if 0
++#define LASSERT_CHECK(cond) if (cond) /* OK. */; else
++#else
++#define LASSERT_CHECK(cond) if (unlikely(!(cond)))
++#endif
+ 
+-#define LASSERTF(cond, fmt, ...)					\
+-do {									\
+-	if (unlikely(!(cond))) {					\
+-		LIBCFS_DEBUG_MSG_DATA_DECL(__msg_data, D_EMERG, NULL);	\
+-		libcfs_debug_msg(&__msg_data,				\
+-				 "ASSERTION( %s ) failed: " fmt, #cond,	\
+-				 ## __VA_ARGS__);			\
+-		lbug_with_loc(&__msg_data);				\
+-	}								\
+-} while (0)
++#define LASSERTF(cond, fmt, ...) \
++({ \
++ LASSERT_CHECK(cond) { \
++ CEMERG("ASSERTION(%s) failed: " fmt, #cond, ## __VA_ARGS__); \
++ LBUG(); \
++ } \
++ })
+ 
+ #define LASSERT(cond) LASSERTF(cond, "\n")
+-#endif /* !LASSERT_CHECKED */
++
+ #else /* !LIBCFS_DEBUG */
+ /* sizeof is to use expression without evaluating it. */
+ # define LASSERT(e) ((void)sizeof!!(e))
+@@ -122,11 +106,11 @@
+ 
+ void lbug_with_loc(struct libcfs_debug_msg_data *) __attribute__((noreturn));
+ 
+-#define LBUG()                                                          \
+-do {                                                                    \
++#define LBUG() \
++do { \
+         LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, D_EMERG, NULL);             \
+         lbug_with_loc(&msgdata);                                        \
+-} while(0)
++} while (0)
+ 
+ extern cfs_atomic_t libcfs_kmemory;
+ /*
+diff -urN lustre_backup/libcfs/include/libcfs/libcfs_time.h lustre-release/libcfs/include/libcfs/libcfs_time.h
+--- lustre_backup/libcfs/include/libcfs/libcfs_time.h	2013-12-17 13:20:46.153188203 -0600
++++ lustre-release/libcfs/include/libcfs/libcfs_time.h	2013-12-17 13:45:22.087786697 -0600
+@@ -90,23 +90,6 @@
+                        cfs_duration_sec(cfs_time_sub(cfs_time_current(),now)));
+ }
+ 
+-#define CFS_RATELIMIT(seconds)                                  \
+-({                                                              \
+-        /*                                                      \
+-         * XXX nikita: non-portable initializer                 \
+-         */                                                     \
+-        static time_t __next_message = 0;                       \
+-        int result;                                             \
+-                                                                \
+-        if (cfs_time_after(cfs_time_current(), __next_message)) \
+-                result = 1;                                     \
+-        else {                                                  \
+-                __next_message = cfs_time_shift(seconds);       \
+-                result = 0;                                     \
+-        }                                                       \
+-        result;                                                 \
+-})
+-
+ /*
+  * helper function similar to do_gettimeofday() of Linux kernel
+  */
+diff -urN lustre_backup/libcfs/libcfs/debug.c lustre-release/libcfs/libcfs/debug.c
+--- lustre_backup/libcfs/libcfs/debug.c	2013-12-17 13:20:46.165194204 -0600
++++ lustre-release/libcfs/libcfs/debug.c	2013-12-19 11:18:35.094633777 -0600
+@@ -473,4 +473,5 @@
+         libcfs_debug_msg(msgdata, "Process leaving via %s (rc=" LPLU " : " LPLD
+                          " : " LPLX ")\n", label, (ulong_ptr_t)rc, rc, rc);
+ }
++
+ EXPORT_SYMBOL(libcfs_log_goto);
+Binary files lustre_backup/libcfs/libcfs/libcfs.ko.unsigned and lustre-release/libcfs/libcfs/libcfs.ko.unsigned differ
+diff -urN lustre_backup/libcfs/libcfs/linux/linux-debug.c lustre-release/libcfs/libcfs/linux/linux-debug.c
+--- lustre_backup/libcfs/libcfs/linux/linux-debug.c	2013-12-17 13:20:46.166194705 -0600
++++ lustre-release/libcfs/libcfs/linux/linux-debug.c	2013-12-18 12:51:29.411038980 -0600
+@@ -164,7 +164,6 @@
+ void lbug_with_loc(struct libcfs_debug_msg_data *msgdata)
+ {
+         libcfs_catastrophe = 1;
+-        libcfs_debug_msg(msgdata, "LBUG\n");
+ 
+         if (in_interrupt()) {
+                 panic("LBUG in interrupt.\n");
+diff -urN lustre_backup/libcfs/libcfs/posix/posix-debug.c lustre-release/libcfs/libcfs/posix/posix-debug.c
+--- lustre_backup/libcfs/libcfs/posix/posix-debug.c	2013-12-17 13:20:46.171197204 -0600
++++ lustre-release/libcfs/libcfs/posix/posix-debug.c	2013-12-19 11:19:27.356633780 -0600
+@@ -160,14 +160,14 @@
+         int     rc;
+ 
+         va_start(args, format);
+-        rc = libcfs_debug_vmsg2(msgdata, format, args, NULL);
++        rc = libcfs_debug_msg2(msgdata, format, args, NULL);
+         va_end(args);
+ 
+         return rc;
+ }
+ 
+ int
+-libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
++libcfs_debug_msg2(struct libcfs_debug_msg_data *msgdata,
+                    const char *format1, va_list args,
+                    const char *format2, ...)
+ {
+Binary files lustre_backup/libcfs/libcfs/.tmp_libcfs_mem.o and lustre-release/libcfs/libcfs/.tmp_libcfs_mem.o differ
+diff -urN lustre_backup/libcfs/libcfs/tracefile.c lustre-release/libcfs/libcfs/tracefile.c
+--- lustre_backup/libcfs/libcfs/tracefile.c	2013-12-17 13:20:46.173198204 -0600
++++ lustre-release/libcfs/libcfs/tracefile.c	2014-01-06 13:47:42.493858556 -0600
+@@ -244,65 +244,39 @@
+         return tage;
+ }
+ 
+-int libcfs_debug_msg(struct libcfs_debug_msg_data *msgdata,
+-                     const char *format, ...)
+-{
+-        va_list args;
+-        int     rc;
+-
+-        va_start(args, format);
+-        rc = libcfs_debug_vmsg2(msgdata, format, args, NULL);
+-        va_end(args);
+-
+-        return rc;
+-}
+-EXPORT_SYMBOL(libcfs_debug_msg);
+-
+-int libcfs_debug_vmsg2(struct libcfs_debug_msg_data *msgdata,
+-                       const char *format1, va_list args,
+-                       const char *format2, ...)
++static void trace_msg2(struct libcfs_debug_msg_data * msgdata, 
++		       const char *fmt1, va_list args1,
++		       const char *fmt2, va_list args2)
+ {
+         struct cfs_trace_cpu_data *tcd = NULL;
+         struct ptldebug_header     header = {0};
+-        struct cfs_trace_page     *tage;
++        struct cfs_trace_page     *tage = NULL;
+         /* string_buf is used only if tcd != NULL, and is always set then */
+         char                      *string_buf = NULL;
+         char                      *debug_buf;
+         int                        known_size;
+         int                        needed = 85; /* average message length */
+         int                        max_nob;
+-        va_list                    ap;
+         int                        depth;
+         int                        i;
+         int                        remain;
+-        int                        mask = msgdata->msg_mask;
+-        char                      *file = (char *)msgdata->msg_file;
+-        cfs_debug_limit_state_t   *cdls = msgdata->msg_cdls;
+-
+-        if (strchr(file, '/'))
+-                file = strrchr(file, '/') + 1;
+ 
+         tcd = cfs_trace_get_tcd();
+ 
+         /* cfs_trace_get_tcd() grabs a lock, which disables preemption and
+          * pins us to a particular CPU.  This avoids an smp_processor_id()
+          * warning on Linux when debugging is enabled. */
+-        cfs_set_ptldebug_header(&header, msgdata, CDEBUG_STACK());
+-
+-        if (tcd == NULL)                /* arch may not log in IRQ context */
+-                goto console;
+ 
+-        if (tcd->tcd_cur_pages == 0)
+-                header.ph_flags |= PH_FLAG_FIRST_RECORD;
++        cfs_set_ptldebug_header(&header, msgdata, 0);
+ 
+-        if (tcd->tcd_shutting_down) {
+-                cfs_trace_put_tcd(tcd);
+-                tcd = NULL;
+-                goto console;
+-        }
++        if (tcd == NULL)                /* arch may not log in IRQ context */
++	  return;
+ 
++        if (tcd->tcd_shutting_down)
++	  goto out;
++        
+         depth = __current_nesting_level();
+-        known_size = strlen(file) + 1 + depth;
++        known_size = strlen(msgdata->msg_file) + 1 + depth;
+         if (msgdata->msg_fn)
+                 known_size += strlen(msgdata->msg_fn) + 1;
+ 
+@@ -316,53 +290,45 @@
+          */
+         for (i = 0; i < 2; i++) {
+                 tage = cfs_trace_get_tage(tcd, needed + known_size + 1);
+-                if (tage == NULL) {
+-                        if (needed + known_size > CFS_PAGE_SIZE)
+-                                mask |= D_ERROR;
+-
+-                        cfs_trace_put_tcd(tcd);
+-                        tcd = NULL;
+-                        goto console;
+-                }
++                if (tage == NULL)
++		  goto out;
+ 
+-                string_buf = (char *)cfs_page_address(tage->page) +
+-                                        tage->used + known_size;
++                string_buf = (char *)cfs_page_address(tage->page)+tage->used+known_size;
+ 
+                 max_nob = CFS_PAGE_SIZE - tage->used - known_size;
+                 if (max_nob <= 0) {
+                         printk(CFS_KERN_EMERG "negative max_nob: %d\n",
+                                max_nob);
+-                        mask |= D_ERROR;
+-                        cfs_trace_put_tcd(tcd);
+-                        tcd = NULL;
+-                        goto console;
++                        goto out;
+                 }
+ 
+                 needed = 0;
+-                if (format1) {
+-                        va_copy(ap, args);
+-                        needed = vsnprintf(string_buf, max_nob, format1, ap);
+-                        va_end(ap);
+-                }
+-
+-                if (format2) {
+-                        remain = max_nob - needed;
+-                        if (remain < 0)
+-                                remain = 0;
+-
+-                        va_start(ap, format2);
+-                        needed += vsnprintf(string_buf + needed, remain,
+-                                            format2, ap);
+-                        va_end(ap);
++                if (fmt1) {
++		  va_list args;
++		  va_copy(args, args1);
++		  needed = vsnprintf(string_buf, max_nob, fmt1, args);
++		  va_end(args);
++                }
++
++                if (fmt2) {
++		    va_list args;
++		    remain = max_nob - needed;
++		    if (remain < 0)
++		      remain = 0;
++
++		    va_copy(args,args2);
++		    needed += vsnprintf(string_buf + needed, remain,
++					fmt2, args);
++		    va_end(args);
+                 }
+ 
+                 if (needed < max_nob) /* well. printing ok.. */
+                         break;
+-        }
+-
+-        if (*(string_buf+needed-1) != '\n')
++	}
++	
++        if (*(string_buf + needed - 1) != '\n')
+                 printk(CFS_KERN_INFO "format at %s:%d:%s doesn't end in "
+-                       "newline\n", file, msgdata->msg_line, msgdata->msg_fn);
++                       "newline\n", msgdata->msg_file, msgdata->msg_line, msgdata->msg_fn);
+ 
+         header.ph_len = known_size + needed;
+         debug_buf = (char *)cfs_page_address(tage->page) + tage->used;
+@@ -376,109 +342,145 @@
+         /* indent message according to the nesting level */
+         while (depth-- > 0) {
+                 *(debug_buf++) = '.';
+-                ++ tage->used;
++                ++tage->used;
+         }
+ 
+-        strcpy(debug_buf, file);
+-        tage->used += strlen(file) + 1;
+-        debug_buf += strlen(file) + 1;
++        strcpy(debug_buf, msgdata->msg_file);
++        tage->used += strlen(msgdata->msg_file) + 1;
++        debug_buf += strlen(msgdata->msg_file) + 1;
+ 
+         if (msgdata->msg_fn) {
+                 strcpy(debug_buf, msgdata->msg_fn);
+                 tage->used += strlen(msgdata->msg_fn) + 1;
+                 debug_buf += strlen(msgdata->msg_fn) + 1;
+         }
+-
++	
+         __LASSERT(debug_buf == string_buf);
+ 
+         tage->used += needed;
+         __LASSERT (tage->used <= CFS_PAGE_SIZE);
++	
++ out:
++        if (tcd != NULL) 
++	  cfs_trace_put_tcd(tcd);
++}
++
++static int cfs_debug_limit(cfs_debug_limit_state_t *cdls)
++{
++  int count;
++  
++  if (cdls == NULL)
++    return 0;
++  if (libcfs_console_ratelimit &&
++      cdls->cdls_next != 0 && /* not first time ever */
++      !cfs_time_after(cfs_time_current(), cdls->cdls_next)) {
++    /* skipping a console message */
++    cdls->cdls_count++;
++    return -1;
++  }
++  
++  if (cfs_time_after(cfs_time_current(),
++		     cdls->cdls_next
++		     + libcfs_console_max_delay
++		     + cfs_time_seconds(10))) {
++    /* last timeout was a long time ago */
++    cdls->cdls_delay /= libcfs_console_backoff * 4;
++  } else {
++    cdls->cdls_delay *= libcfs_console_backoff;
++    if (cdls->cdls_delay < libcfs_console_min_delay)
++      cdls->cdls_delay = libcfs_console_min_delay;
++    else if (cdls->cdls_delay > libcfs_console_max_delay)
++      cdls->cdls_delay = libcfs_console_max_delay;
++  }
++  /* ensure cdls_next is never zero after it's been seen */
++  cdls->cdls_next = (cfs_time_current() + cdls->cdls_delay) | 1;
++  count = cdls->cdls_count;
++  cdls->cdls_count = 0;
++  return count;
++}
+ 
+-console:
+-        if ((mask & libcfs_printk) == 0) {
+-                /* no console output requested */
+-                if (tcd != NULL)
+-                        cfs_trace_put_tcd(tcd);
+-                return 1;
+-        }
+-
+-        if (cdls != NULL) {
+-                if (libcfs_console_ratelimit &&
+-                    cdls->cdls_next != 0 &&     /* not first time ever */
+-                    !cfs_time_after(cfs_time_current(), cdls->cdls_next)) {
+-                        /* skipping a console message */
+-                        cdls->cdls_count++;
+-                        if (tcd != NULL)
+-                                cfs_trace_put_tcd(tcd);
+-                        return 1;
+-                }
+-
+-                if (cfs_time_after(cfs_time_current(), cdls->cdls_next +
+-                                                       libcfs_console_max_delay
+-                                                       + cfs_time_seconds(10))) {
+-                        /* last timeout was a long time ago */
+-                        cdls->cdls_delay /= libcfs_console_backoff * 4;
+-                } else {
+-                        cdls->cdls_delay *= libcfs_console_backoff;
+-
+-                        if (cdls->cdls_delay < libcfs_console_min_delay)
+-                                cdls->cdls_delay = libcfs_console_min_delay;
+-                        else if (cdls->cdls_delay > libcfs_console_max_delay)
+-                                cdls->cdls_delay = libcfs_console_max_delay;
+-                }
+-
+-                /* ensure cdls_next is never zero after it's been seen */
+-                cdls->cdls_next = (cfs_time_current() + cdls->cdls_delay) | 1;
+-        }
+-
+-        if (tcd != NULL) {
+-                cfs_print_to_console(&header, mask, string_buf, needed, file,
+-                                     msgdata->msg_fn);
+-                cfs_trace_put_tcd(tcd);
+-        } else {
+-                string_buf = cfs_trace_get_console_buffer();
+-
+-                needed = 0;
+-                if (format1 != NULL) {
+-                        va_copy(ap, args);
+-                        needed = vsnprintf(string_buf,
+-                                           CFS_TRACE_CONSOLE_BUFFER_SIZE,
+-                                           format1, ap);
+-                        va_end(ap);
+-                }
+-                if (format2 != NULL) {
+-                        remain = CFS_TRACE_CONSOLE_BUFFER_SIZE - needed;
+-                        if (remain > 0) {
+-                                va_start(ap, format2);
+-                                needed += vsnprintf(string_buf+needed, remain,
+-                                                    format2, ap);
+-                                va_end(ap);
+-                        }
+-                }
+-                cfs_print_to_console(&header, mask,
+-                                     string_buf, needed, file, msgdata->msg_fn);
+-
+-                cfs_trace_put_console_buffer(string_buf);
+-        }
+-
+-        if (cdls != NULL && cdls->cdls_count != 0) {
+-                string_buf = cfs_trace_get_console_buffer();
++int libcfs_debug_msg(struct libcfs_debug_msg_data *msgdata,
++		      const char *fmt, ...)
++{
++  va_list args;
+ 
+-                needed = snprintf(string_buf, CFS_TRACE_CONSOLE_BUFFER_SIZE,
+-                                  "Skipped %d previous similar message%s\n",
+-                                  cdls->cdls_count,
+-                                  (cdls->cdls_count > 1) ? "s" : "");
++  va_start(args, fmt);
++  libcfs_debug_msg2(msgdata, fmt, args, NULL);
++  va_end(args);
+ 
+-                cfs_print_to_console(&header, mask,
+-                                     string_buf, needed, file, msgdata->msg_fn);
++  return 0;
++}
++EXPORT_SYMBOL(libcfs_debug_msg);
+ 
+-                cfs_trace_put_console_buffer(string_buf);
+-                cdls->cdls_count = 0;
+-        }
++/* MOVEME */
++#define CONFIG_VPRINTK2
++/* MOVEME */
++static inline void cfs_vprintk2(const char *fmt1, va_list args1, const char *fmt2, va_list args2)
++{
++#if defined(CONFIG_VPRINTK2)
++  
++  int vprintk2(const char *fmt1, va_list args1, const char *fmt2, va_list args2);
++  vprintk2(fmt1, args1, fmt2, args2);
++
++#elif defined(CONFIG_VPRINTK2_MAYBE)
++
++  int vprintk2(const char *fmt1, va_list args1, const char *fmt2, va_list args2)
++    __attribute__((weak));
++
++  if (vprintk2 == NULL) {
++    vprintk(fmt1, args1);
++    vprintk(fmt2, args2);
++  } else {
++    vprintk2(fmt1, args1, fmt2, args2);
++  }
++#else
++  vprintk(fmt1, args1);
++  vprintk(fmt2, args2);
++#endif
++}
+ 
+-        return 0;
++int libcfs_debug_msg2(struct libcfs_debug_msg_data *msgdata,
++		       const char *fmt1, va_list args1, const char *fmt2, ...)
++{
++  va_list trace_args1, args2;
++  const char *trace_fmt1, *prio, *file, *func;
++  int pid, line, count;
++  
++  trace_fmt1 = fmt1 + strlen(CFS_DEBUG_HDR_FMT);
++  
++  va_copy(trace_args1, args1);
++  va_start(args2, fmt2);
++  
++  prio = va_arg(trace_args1, char *);
++  pid = va_arg(trace_args1, int);
++  file = va_arg(trace_args1, char *);
++  line = va_arg(trace_args1, int);
++  func = va_arg(trace_args1, char *);
++
++  trace_msg2(msgdata, trace_fmt1, trace_args1, fmt2, args2);
++  va_end(args2);
++  va_end(trace_args1);
++
++  if ((msgdata->msg_mask & libcfs_printk) == 0)
++    return 0;
++  
++  if ((count = cfs_debug_limit(msgdata->msg_cdls)) < 0)
++    return 0;
++  
++  if (fmt2 == NULL) {
++    vprintk(fmt1, args1);
++  } else {
++   va_start(args2, fmt2);
++   cfs_vprintk2(fmt1, args1, fmt2, args2);
++   va_end(args2);
++  }
++  
++  if (count > 0)
++    printk("%sLustre: %d:(%s:%d:%s()) Skipped %d previous similar message%s\n",
++	   prio, pid, file, line, func, count, count > 1 ? "s" : "");
++ return 0;
+ }
+-EXPORT_SYMBOL(libcfs_debug_vmsg2);
++EXPORT_SYMBOL(libcfs_debug_msg2);
+ 
+ void
+ cfs_trace_assertion_failed(const char *str,
+@@ -490,7 +492,7 @@
+         libcfs_catastrophe = 1;
+         cfs_mb();
+ 
+-        cfs_set_ptldebug_header(&hdr, msgdata, CDEBUG_STACK());
++        cfs_set_ptldebug_header(&hdr,msgdata,0);
+ 
+         cfs_print_to_console(&hdr, D_EMERG, str, strlen(str),
+                              msgdata->msg_file, msgdata->msg_fn);
+diff -urN lustre_backup/libcfs/libcfs/tracefile.h lustre-release/libcfs/libcfs/tracefile.h
+--- lustre_backup/libcfs/libcfs/tracefile.h	2013-12-17 13:20:46.173198204 -0600
++++ lustre-release/libcfs/libcfs/tracefile.h	2013-12-18 15:36:40.896304940 -0600
+@@ -70,9 +70,6 @@
+ void cfs_trace_stop_thread(void);
+ int cfs_tracefile_init(int max_pages);
+ void cfs_tracefile_exit(void);
+-
+-
+-
+ int cfs_trace_copyin_string(char *knl_buffer, int knl_buffer_nob,
+                             const char *usr_buffer, int usr_buffer_nob);
+ int cfs_trace_copyout_string(char *usr_buffer, int usr_buffer_nob,
+@@ -262,6 +259,7 @@
+ extern void cfs_set_ptldebug_header(struct ptldebug_header *header,
+                                     struct libcfs_debug_msg_data *m,
+                                     unsigned long stack);
++
+ extern void cfs_print_to_console(struct ptldebug_header *hdr, int mask,
+                                  const char *buf, int len, const char *file,
+                                  const char *fn);
+@@ -327,7 +325,7 @@
+ #define __LASSERT(cond)                                                 \
+ do {                                                                    \
+         if (unlikely(!(cond))) {                                        \
+-                LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, D_EMERG, NULL);     \
++	  LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, D_EMERG, NULL);		\
+                 cfs_trace_assertion_failed("ASSERTION("#cond") failed", \
+                                            &msgdata);                   \
+         }                                                               \
+diff -urN lustre_backup/libcfs/libcfs/workitem.c lustre-release/libcfs/libcfs/workitem.c
+--- lustre_backup/libcfs/libcfs/workitem.c	2013-12-17 13:20:46.177200203 -0600
++++ lustre-release/libcfs/libcfs/workitem.c	2013-12-19 11:23:02.131634078 -0600
+@@ -389,8 +389,9 @@
+ void
+ cfs_wi_sched_destroy(struct cfs_wi_sched *sched)
+ {
+-	int	i;
+-
++  int	i;
++  int mask;
++  mask = 0;
+ 	LASSERT(cfs_wi_data.wi_init);
+ 	LASSERT(!cfs_wi_data.wi_stopping);
+ 
+@@ -409,11 +410,13 @@
+ 
+ 	i = 2;
+ #ifdef __KERNEL__
++
+ 	cfs_waitq_broadcast(&sched->ws_waitq);
+ 
+ 	spin_lock(&cfs_wi_data.wi_glock);
+ 	while (sched->ws_nthreads > 0) {
+-		CDEBUG(IS_PO2(++i) ? D_WARNING : D_NET,
++	  mask = IS_PO2(++i) ? D_WARNING : D_NET;
++		CDEBUG(mask,
+ 		       "waiting for %d threads of WI sched[%s] to terminate\n",
+ 		       sched->ws_nthreads, sched->ws_name);
+ 
+diff -urN lustre_backup/libsysio/tests/Makefile lustre-release/libsysio/tests/Makefile
+--- lustre_backup/libsysio/tests/Makefile	2014-02-20 10:51:39.656578417 -0600
++++ lustre-release/libsysio/tests/Makefile	2014-02-20 10:58:07.648477206 -0600
+@@ -236,12 +236,12 @@
+ ETAGS = etags
+ CTAGS = ctags
+ DISTFILES = $(DIST_COMMON) $(DIST_SOURCES) $(TEXINFOS) $(EXTRA_DIST)
+-ACLOCAL = ${SHELL} /home/rtevans/build/lustre_backup/libsysio/missing --run aclocal-1.11
+-AMTAR = ${SHELL} /home/rtevans/build/lustre_backup/libsysio/missing --run tar
++ACLOCAL = ${SHELL} /home/rtevans/build/lustre-release/libsysio/missing --run aclocal-1.11
++AMTAR = ${SHELL} /home/rtevans/build/lustre-release/libsysio/missing --run tar
+ AR = ar
+-AUTOCONF = ${SHELL} /home/rtevans/build/lustre_backup/libsysio/missing --run autoconf
+-AUTOHEADER = ${SHELL} /home/rtevans/build/lustre_backup/libsysio/missing --run autoheader
+-AUTOMAKE = ${SHELL} /home/rtevans/build/lustre_backup/libsysio/missing --run automake-1.11
++AUTOCONF = ${SHELL} /home/rtevans/build/lustre-release/libsysio/missing --run autoconf
++AUTOHEADER = ${SHELL} /home/rtevans/build/lustre-release/libsysio/missing --run autoheader
++AUTOMAKE = ${SHELL} /home/rtevans/build/lustre-release/libsysio/missing --run automake-1.11
+ AUTOMOUNT = 
+ AWK = gawk
+ CC = gcc
+@@ -266,12 +266,12 @@
+ INSTALL_STRIP_PROGRAM = $(install_sh) -c -s
+ LD = ld
+ LDFLAGS = 
+-LIBBUILD_DIR = /home/rtevans/build/lustre_backup/libsysio/lib
++LIBBUILD_DIR = /home/rtevans/build/lustre-release/libsysio/lib
+ LIBOBJS = 
+ LIBS = $(LIBBUILD_DIR)/libsysio.a
+ LTLIBOBJS = 
+ MAINT = 
+-MAKEINFO = ${SHELL} /home/rtevans/build/lustre_backup/libsysio/missing --run makeinfo
++MAKEINFO = ${SHELL} /home/rtevans/build/lustre-release/libsysio/missing --run makeinfo
+ MKDIR_P = /bin/mkdir -p
+ OBJDUMP = objdump
+ OBJEXT = o
+@@ -290,10 +290,10 @@
+ TRACING = -DSYSIO_TRACING=1
+ VERSION = 1.2
+ ZERO_SUM_MEMORY = 
+-abs_builddir = /home/rtevans/build/lustre_backup/libsysio/tests
+-abs_srcdir = /home/rtevans/build/lustre_backup/libsysio/tests
+-abs_top_builddir = /home/rtevans/build/lustre_backup/libsysio
+-abs_top_srcdir = /home/rtevans/build/lustre_backup/libsysio
++abs_builddir = /home/rtevans/build/lustre-release/libsysio/tests
++abs_srcdir = /home/rtevans/build/lustre-release/libsysio/tests
++abs_top_builddir = /home/rtevans/build/lustre-release/libsysio
++abs_top_srcdir = /home/rtevans/build/lustre-release/libsysio
+ ac_ct_CC = gcc
+ am__include = include
+ am__leading_dot = .
+@@ -320,7 +320,7 @@
+ htmldir = ${docdir}
+ includedir = ${prefix}/include
+ infodir = ${datarootdir}/info
+-install_sh = ${SHELL} /home/rtevans/build/lustre_backup/libsysio/install-sh
++install_sh = ${SHELL} /home/rtevans/build/lustre-release/libsysio/install-sh
+ libdir = ${exec_prefix}/lib
+ libexecdir = ${exec_prefix}/libexec
+ localedir = ${datarootdir}/locale
+Binary files lustre_backup/lnet/klnds/o2iblnd/ko2iblnd.ko.unsigned and lustre-release/lnet/klnds/o2iblnd/ko2iblnd.ko.unsigned differ
+diff -urN lustre_backup/lnet/klnds/o2iblnd/modules.order lustre-release/lnet/klnds/o2iblnd/modules.order
+--- lustre_backup/lnet/klnds/o2iblnd/modules.order	1969-12-31 18:00:00.000000000 -0600
++++ lustre-release/lnet/klnds/o2iblnd/modules.order	2014-01-06 14:08:00.945761998 -0600
+@@ -0,0 +1 @@
++kernel//home/rtevans/build/lustre-release/lnet/klnds/o2iblnd/ko2iblnd.ko
+Binary files lustre_backup/lnet/klnds/socklnd/ksocklnd.ko.unsigned and lustre-release/lnet/klnds/socklnd/ksocklnd.ko.unsigned differ
+diff -urN lustre_backup/lnet/klnds/socklnd/modules.order lustre-release/lnet/klnds/socklnd/modules.order
+--- lustre_backup/lnet/klnds/socklnd/modules.order	1969-12-31 18:00:00.000000000 -0600
++++ lustre-release/lnet/klnds/socklnd/modules.order	2014-01-06 14:08:01.072825498 -0600
+@@ -0,0 +1 @@
++kernel//home/rtevans/build/lustre-release/lnet/klnds/socklnd/ksocklnd.ko
+Binary files lustre_backup/lnet/lnet/lnet.ko.unsigned and lustre-release/lnet/lnet/lnet.ko.unsigned differ
+diff -urN lustre_backup/lnet/lnet/modules.order lustre-release/lnet/lnet/modules.order
+--- lustre_backup/lnet/lnet/modules.order	1969-12-31 18:00:00.000000000 -0600
++++ lustre-release/lnet/lnet/modules.order	2014-01-06 14:08:01.259918998 -0600
+@@ -0,0 +1 @@
++kernel//home/rtevans/build/lustre-release/lnet/lnet/lnet.ko
+Binary files lustre_backup/lnet/selftest/lnet_selftest.ko.unsigned and lustre-release/lnet/selftest/lnet_selftest.ko.unsigned differ
+diff -urN lustre_backup/lnet/selftest/modules.order lustre-release/lnet/selftest/modules.order
+--- lustre_backup/lnet/selftest/modules.order	1969-12-31 18:00:00.000000000 -0600
++++ lustre-release/lnet/selftest/modules.order	2014-01-06 14:08:01.409993997 -0600
+@@ -0,0 +1 @@
++kernel//home/rtevans/build/lustre-release/lnet/selftest/lnet_selftest.ko
+diff -urN lustre_backup/lnet/selftest/selftest.h lustre-release/lnet/selftest/selftest.h
+--- lustre_backup/lnet/selftest/selftest.h	2013-12-17 13:20:46.222222703 -0600
++++ lustre-release/lnet/selftest/selftest.h	2013-12-18 14:50:19.734418946 -0600
+@@ -617,9 +617,10 @@
+ 
+ #define lst_wait_until(cond, lock, fmt, ...)				\
+ do {									\
+-	int __I = 2;							\
++	int __I = 2;	                                                \
++	int mask = IS_PO2(++__I) ? D_WARNING : D_NET;			\
+ 	while (!(cond)) {						\
+-		CDEBUG(IS_PO2(++__I) ? D_WARNING : D_NET,		\
++	  CDEBUG(mask,							\
+ 		       fmt, ## __VA_ARGS__);				\
+ 		spin_unlock(&(lock));					\
+ 									\
+Binary files lustre_backup/lustre/fid/fid.ko.unsigned and lustre-release/lustre/fid/fid.ko.unsigned differ
+diff -urN lustre_backup/lustre/fid/modules.order lustre-release/lustre/fid/modules.order
+--- lustre_backup/lustre/fid/modules.order	1969-12-31 18:00:00.000000000 -0600
++++ lustre-release/lustre/fid/modules.order	2014-01-06 14:08:01.552064997 -0600
+@@ -0,0 +1 @@
++kernel//home/rtevans/build/lustre-release/lustre/fid/fid.ko
+Binary files lustre_backup/lustre/fld/fld.ko.unsigned and lustre-release/lustre/fld/fld.ko.unsigned differ
+diff -urN lustre_backup/lustre/fld/modules.order lustre-release/lustre/fld/modules.order
+--- lustre_backup/lustre/fld/modules.order	1969-12-31 18:00:00.000000000 -0600
++++ lustre-release/lustre/fld/modules.order	2014-01-06 14:08:01.662119996 -0600
+@@ -0,0 +1 @@
++kernel//home/rtevans/build/lustre-release/lustre/fld/fld.ko
+diff -urN lustre_backup/lustre/include/lustre/lustre_build_version.h lustre-release/lustre/include/lustre/lustre_build_version.h
+--- lustre_backup/lustre/include/lustre/lustre_build_version.h	1969-12-31 18:00:00.000000000 -0600
++++ lustre-release/lustre/include/lustre/lustre_build_version.h	2014-01-24 12:38:32.850972932 -0600
+@@ -0,0 +1,2 @@
++#define BUILD_VERSION "-g85c734a-CHANGED-2.6.32.358.18.1.el6_ratlustre"
++#define LUSTRE_RELEASE 2.6.32.358.18.1.el6_ratlustre_g85c734a
+diff -urN lustre_backup/lustre/include/lustre_dlm.h lustre-release/lustre/include/lustre_dlm.h
+--- lustre_backup/lustre/include/lustre_dlm.h	2013-12-17 13:20:46.266244703 -0600
++++ lustre-release/lustre/include/lustre_dlm.h	2013-12-18 14:52:57.102063435 -0600
+@@ -1250,50 +1250,35 @@
+  * For the cases where we do not have actual lock to print along
+  * with a debugging message that is ldlm-related
+  */
+-#define LDLM_DEBUG_NOLOCK(format, a...)			\
+-	CDEBUG(D_DLMTRACE, "### " format "\n" , ##a)
+ 
+ /**
+  * Support function for lock information printing into debug logs.
+  * \see LDLM_DEBUG
+  */
+ #ifdef LIBCFS_DEBUG
+-#define ldlm_lock_debug(msgdata, mask, cdls, lock, fmt, a...) do {      \
+-        CFS_CHECK_STACK(msgdata, mask, cdls);                           \
+-                                                                        \
+-        if (((mask) & D_CANTMASK) != 0 ||                               \
+-            ((libcfs_debug & (mask)) != 0 &&                            \
+-             (libcfs_subsystem_debug & DEBUG_SUBSYSTEM) != 0))          \
+-                _ldlm_lock_debug(lock, msgdata, fmt, ##a);              \
+-} while(0)
+-
+-void _ldlm_lock_debug(struct ldlm_lock *lock,
+-                      struct libcfs_debug_msg_data *data,
+-                      const char *fmt, ...)
+-        __attribute__ ((format (printf, 3, 4)));
++void ldlm_debug_msg(struct ldlm_lock *lock,
++		    cfs_debug_limit_state_t *cdls,
++		    int subsys, int mask,
++		    const char *fmt, ...)
++  __attribute__ ((format (printf, 5, 6)));
++
++#define LDLM_DEBUG_MSG(lock, cdls, mask, fmt, args...)	\
++  do {							\
++    if (CFS_DEBUG_MASK((mask)))					       \
++      ldlm_debug_msg(lock, CFS_DEBUG_ARGS(cdls, mask, "### " fmt, ##args)); \
++  } while(0)
++
++#define LDLM_DEBUG_LIMIT(mask, lock, fmt, args...)	\
++  do {							\
++    static cfs_debug_limit_state_t _ldlm_cdls;		\
++    LDLM_DEBUG_MSG(lock, &_ldlm_cdls, mask, fmt, ##args);	\
++  } while (0)
++
++#define LDLM_ERROR(lock, fmt, args...) LDLM_DEBUG_LIMIT(D_ERROR, lock, fmt, ##args)
++#define LDLM_WARN(lock, fmt, args...) LDLM_DEBUG_LIMIT(D_WARNING, lock, fmt, ##args)
++#define LDLM_DEBUG(lock, fmt, args...) LDLM_DEBUG_MSG(lock, NULL, D_DLMTRACE, fmt, ##args)
++#define LDLM_DEBUG_NOLOCK(fmt, args...) CDEBUG(D_DLMTRACE, "### " fmt "\n" , ##args)
+ 
+-/**
+- * Rate-limited version of lock printing function.
+- */
+-#define LDLM_DEBUG_LIMIT(mask, lock, fmt, a...) do {                         \
+-        static cfs_debug_limit_state_t _ldlm_cdls;                           \
+-        LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, mask, &_ldlm_cdls);              \
+-        ldlm_lock_debug(&msgdata, mask, &_ldlm_cdls, lock, "### " fmt , ##a);\
+-} while (0)
+-
+-#define LDLM_ERROR(lock, fmt, a...) LDLM_DEBUG_LIMIT(D_ERROR, lock, fmt, ## a)
+-#define LDLM_WARN(lock, fmt, a...)  LDLM_DEBUG_LIMIT(D_WARNING, lock, fmt, ## a)
+-
+-/** Non-rate-limited lock printing function for debugging purposes. */
+-#define LDLM_DEBUG(lock, fmt, a...)   do {                                  \
+-	if (likely(lock != NULL)) {					    \
+-		LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, D_DLMTRACE, NULL);      \
+-		ldlm_lock_debug(&msgdata, D_DLMTRACE, NULL, lock, 	    \
+-				"### " fmt , ##a);			    \
+-	} else {							    \
+-		LDLM_DEBUG_NOLOCK("no dlm lock: " fmt, ##a);		    \
+-	}								    \
+-} while (0)
+ #else /* !LIBCFS_DEBUG */
+ # define LDLM_DEBUG_LIMIT(mask, lock, fmt, a...) ((void)0)
+ # define LDLM_DEBUG(lock, fmt, a...) ((void)0)
+diff -urN lustre_backup/lustre/include/lustre_net.h lustre-release/lustre/include/lustre_net.h
+--- lustre_backup/lustre/include/lustre_net.h	2013-12-17 13:20:46.267245204 -0600
++++ lustre-release/lustre/include/lustre_net.h	2013-12-20 10:33:05.212235621 -0600
+@@ -2170,60 +2170,25 @@
+         return ptlrpc_phase2str(req->rq_phase);
+ }
+ 
+-/**
+- * Debugging functions and helpers to print request structure into debug log
+- * @{
+- */ 
+-/* Spare the preprocessor, spoil the bugs. */
+-#define FLAG(field, str) (field ? str : "")
+-
+-/** Convert bit flags into a string */
+-#define DEBUG_REQ_FLAGS(req)                                                    \
+-        ptlrpc_rqphase2str(req),                                                \
+-        FLAG(req->rq_intr, "I"), FLAG(req->rq_replied, "R"),                    \
+-        FLAG(req->rq_err, "E"),                                                 \
+-        FLAG(req->rq_timedout, "X") /* eXpired */, FLAG(req->rq_resend, "S"),   \
+-        FLAG(req->rq_restart, "T"), FLAG(req->rq_replay, "P"),                  \
+-        FLAG(req->rq_no_resend, "N"),                                           \
+-        FLAG(req->rq_waiting, "W"),                                             \
+-        FLAG(req->rq_wait_ctx, "C"), FLAG(req->rq_hp, "H"),                     \
+-        FLAG(req->rq_committed, "M")
+-
+-#define REQ_FLAGS_FMT "%s:%s%s%s%s%s%s%s%s%s%s%s%s"
+-
+-void _debug_req(struct ptlrpc_request *req,
+-                struct libcfs_debug_msg_data *data, const char *fmt, ...)
+-        __attribute__ ((format (printf, 3, 4)));
+-
+-/**
+- * Helper that decides if we need to print request accordig to current debug
+- * level settings
+- */
+-#define debug_req(msgdata, mask, cdls, req, fmt, a...)                        \
+-do {                                                                          \
+-        CFS_CHECK_STACK(msgdata, mask, cdls);                                 \
+-                                                                              \
+-        if (((mask) & D_CANTMASK) != 0 ||                                     \
+-            ((libcfs_debug & (mask)) != 0 &&                                  \
+-             (libcfs_subsystem_debug & DEBUG_SUBSYSTEM) != 0))                \
+-                _debug_req((req), msgdata, fmt, ##a);                         \
+-} while(0)
+-
+-/**
+- * This is the debug print function you need to use to print request sturucture
+- * content into lustre debug log.
+- * for most callers (level is a constant) this is resolved at compile time */
+-#define DEBUG_REQ(level, req, fmt, args...)                                   \
+-do {                                                                          \
+-        if ((level) & (D_ERROR | D_WARNING)) {                                \
+-                static cfs_debug_limit_state_t cdls;                          \
+-                LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, level, &cdls);            \
+-                debug_req(&msgdata, level, &cdls, req, "@@@ "fmt" ", ## args);\
+-        } else {                                                              \
+-                LIBCFS_DEBUG_MSG_DATA_DECL(msgdata, level, NULL);             \
+-                debug_req(&msgdata, level, NULL, req, "@@@ "fmt" ", ## args); \
+-        }                                                                     \
+-} while (0)
++void debug_req_msg(struct ptlrpc_request *req, cfs_debug_limit_state_t *cdls,
++		   int subsys, int mask, const char *fmt1, ...)
++  __attribute__ ((format (printf, 5, 6)));
++
++#define DEBUG_REQ_MSG(req, cdls, mask, fmt, args...)			\
++  do {									\
++  if (CFS_DEBUG_MASK((mask)))						\
++   debug_req_msg(req, CFS_DEBUG_ARGS(cdls, mask, "@@@ " fmt, ##args));	\
++ } while(0)
++
++#define DEBUG_REQ(mask, req, fmt, args...)		\
++  do {							\
++    if ((mask) & (D_ERROR | D_WARNING)) {		\
++      static cfs_debug_limit_state_t _cdls;		\
++      DEBUG_REQ_MSG(req, &_cdls, mask, fmt, ##args);	\
++    } else {						\
++      DEBUG_REQ_MSG(req, NULL, mask, fmt, ##args);	\
++    }							\
++  } while (0)
+ /** @} */
+ 
+ /**
+diff -urN lustre_backup/lustre/ldlm/ldlm_lock.c lustre-release/lustre/ldlm/ldlm_lock.c
+--- lustre_backup/lustre/ldlm/ldlm_lock.c	2013-12-19 11:29:05.966634085 -0600
++++ lustre-release/lustre/ldlm/ldlm_lock.c	2013-12-20 10:55:41.572658821 -0600
+@@ -2440,131 +2440,134 @@
+  * Print lock information with custom message into debug log.
+  * Helper function.
+  */
+-void _ldlm_lock_debug(struct ldlm_lock *lock,
+-                      struct libcfs_debug_msg_data *msgdata,
+-                      const char *fmt, ...)
++void ldlm_debug_msg(struct ldlm_lock *lock, cfs_debug_limit_state_t *cdls,
++		    int subsys, int mask, const char *fmt1, ...)
+ {
+-        va_list args;
++        va_list args1;
+         struct obd_export *exp = lock->l_export;
+         struct ldlm_resource *resource = lock->l_resource;
+         char *nid = "local";
+ 
+-        va_start(args, fmt);
+-
++#define _MSG(fmt2, args2...)						\
++	do {								\
++	  static struct libcfs_debug_msg_data msgdata;			\
++	  LIBCFS_DEBUG_MSG_DATA_INIT(&msgdata,mask,cdls);		\
++	  va_start(args1, fmt1);					\
++	  libcfs_debug_msg2(&msgdata, fmt1, args1, fmt2, ##args2);	\
++	  va_end(args1);						\
++	} while (0)
++	
+         if (exp && exp->exp_connection) {
+-                nid = libcfs_nid2str(exp->exp_connection->c_peer.nid);
++	  nid = libcfs_nid2str(exp->exp_connection->c_peer.nid);
+         } else if (exp && exp->exp_obd != NULL) {
+                 struct obd_import *imp = exp->exp_obd->u.cli.cl_import;
+                 nid = libcfs_nid2str(imp->imp_connection->c_peer.nid);
+         }
+-
++	
+         if (resource == NULL) {
+-                libcfs_debug_vmsg2(msgdata, fmt, args,
+-                       " ns: \?\? lock: %p/"LPX64" lrc: %d/%d,%d mode: %s/%s "
+-                       "res: \?\? rrc=\?\? type: \?\?\? flags: "LPX64" nid: %s "
+-                       "remote: "LPX64" expref: %d pid: %u timeout: %lu "
+-		       "lvb_type: %d\n",
+-                       lock,
+-                       lock->l_handle.h_cookie, cfs_atomic_read(&lock->l_refc),
+-                       lock->l_readers, lock->l_writers,
+-                       ldlm_lockname[lock->l_granted_mode],
+-                       ldlm_lockname[lock->l_req_mode],
+-                       lock->l_flags, nid, lock->l_remote_handle.cookie,
+-                       exp ? cfs_atomic_read(&exp->exp_refcount) : -99,
+-                       lock->l_pid, lock->l_callback_timeout, lock->l_lvb_type);
+-                va_end(args);
+-                return;
++	  _MSG(" ns: \?\? lock: %p/"LPX64" lrc: %d/%d,%d mode: %s/%s "
++	       "res: \?\? rrc=\?\? type: \?\?\? flags: "LPX64" remote: "
++	       LPX64" expref: %d pid: %u timeout: %lu\n", lock,
++	       lock->l_handle.h_cookie, cfs_atomic_read(&lock->l_refc),
++	       lock->l_readers, lock->l_writers,
++	       ldlm_lockname[lock->l_granted_mode],
++	       ldlm_lockname[lock->l_req_mode],
++	       lock->l_flags, lock->l_remote_handle.cookie,
++	       lock->l_export ?
++	       cfs_atomic_read(&lock->l_export->exp_refcount) : -99,
++	       lock->l_pid, lock->l_callback_timeout);
++	  return;
+         }
+-
++	
+ 	switch (resource->lr_type) {
+ 	case LDLM_EXTENT:
+-		libcfs_debug_vmsg2(msgdata, fmt, args,
+-			" ns: %s lock: %p/"LPX64" lrc: %d/%d,%d mode: %s/%s "
+-			"res: "DLDLMRES" rrc: %d type: %s ["LPU64"->"LPU64"] "
+-			"(req "LPU64"->"LPU64") flags: "LPX64" nid: %s remote: "
+-			LPX64" expref: %d pid: %u timeout: %lu lvb_type: %d\n",
+-			ldlm_lock_to_ns_name(lock), lock,
+-			lock->l_handle.h_cookie, cfs_atomic_read(&lock->l_refc),
+-			lock->l_readers, lock->l_writers,
+-			ldlm_lockname[lock->l_granted_mode],
+-			ldlm_lockname[lock->l_req_mode],
+-			PLDLMRES(resource),
+-			cfs_atomic_read(&resource->lr_refcount),
+-			ldlm_typename[resource->lr_type],
+-			lock->l_policy_data.l_extent.start,
+-			lock->l_policy_data.l_extent.end,
+-			lock->l_req_extent.start, lock->l_req_extent.end,
+-			lock->l_flags, nid, lock->l_remote_handle.cookie,
+-			exp ? cfs_atomic_read(&exp->exp_refcount) : -99,
+-			lock->l_pid, lock->l_callback_timeout,
+-			lock->l_lvb_type);
+-		break;
+-
++	  _MSG(" ns: %s lock: %p/"LPX64" lrc: %d/%d,%d mode: %s/%s "
++	       "res: "LPU64"/"LPU64" rrc: %d type: %s ["LPU64"->"LPU64
++	       "] (req "LPU64"->"LPU64") flags: "LPX64" remote: "LPX64
++	       " expref: %d pid: %u timeout %lu\n",
++	       ldlm_lock_to_ns_name(lock), lock,
++	       lock->l_handle.h_cookie, cfs_atomic_read(&lock->l_refc),
++	       lock->l_readers, lock->l_writers,
++	       ldlm_lockname[lock->l_granted_mode],
++	       ldlm_lockname[lock->l_req_mode],
++	       lock->l_resource->lr_name.name[0],
++	       lock->l_resource->lr_name.name[1],
++	       cfs_atomic_read(&lock->l_resource->lr_refcount),
++	       ldlm_typename[lock->l_resource->lr_type],
++	       lock->l_policy_data.l_extent.start,
++	       lock->l_policy_data.l_extent.end,
++	       lock->l_req_extent.start, lock->l_req_extent.end,
++	       lock->l_flags, lock->l_remote_handle.cookie,
++	       lock->l_export ?
++	       cfs_atomic_read(&lock->l_export->exp_refcount) : -99,
++	       lock->l_pid, lock->l_callback_timeout);
++	  return;
++	  
+ 	case LDLM_FLOCK:
+-		libcfs_debug_vmsg2(msgdata, fmt, args,
+-			" ns: %s lock: %p/"LPX64" lrc: %d/%d,%d mode: %s/%s "
+-			"res: "DLDLMRES" rrc: %d type: %s pid: %d "
+-			"["LPU64"->"LPU64"] flags: "LPX64" nid: %s "
+-			"remote: "LPX64" expref: %d pid: %u timeout: %lu\n",
+-			ldlm_lock_to_ns_name(lock), lock,
+-			lock->l_handle.h_cookie, cfs_atomic_read(&lock->l_refc),
+-			lock->l_readers, lock->l_writers,
+-			ldlm_lockname[lock->l_granted_mode],
+-			ldlm_lockname[lock->l_req_mode],
+-			PLDLMRES(resource),
+-			cfs_atomic_read(&resource->lr_refcount),
+-			ldlm_typename[resource->lr_type],
+-			lock->l_policy_data.l_flock.pid,
+-			lock->l_policy_data.l_flock.start,
+-			lock->l_policy_data.l_flock.end,
+-			lock->l_flags, nid, lock->l_remote_handle.cookie,
+-			exp ? cfs_atomic_read(&exp->exp_refcount) : -99,
+-			lock->l_pid, lock->l_callback_timeout);
+-		break;
+-
++	  _MSG(" ns: %s lock: %p/"LPX64" lrc: %d/%d,%d mode: %s/%s "
++	       "res: "LPU64"/"LPU64" rrc: %d type: %s pid: %d "
++	       "["LPU64"->"LPU64"] flags: "LPX64" remote: "LPX64
++	       " expref: %d pid: %u timeout: %lu\n",
++	       ldlm_lock_to_ns_name(lock), lock,
++	       lock->l_handle.h_cookie, cfs_atomic_read(&lock->l_refc),
++	       lock->l_readers, lock->l_writers,
++	       ldlm_lockname[lock->l_granted_mode],
++	       ldlm_lockname[lock->l_req_mode],
++	       lock->l_resource->lr_name.name[0],
++	       lock->l_resource->lr_name.name[1],
++	       cfs_atomic_read(&lock->l_resource->lr_refcount),
++	       ldlm_typename[lock->l_resource->lr_type],
++	       lock->l_policy_data.l_flock.pid,
++	       lock->l_policy_data.l_flock.start,
++	       lock->l_policy_data.l_flock.end,
++	       lock->l_flags, lock->l_remote_handle.cookie,
++	       lock->l_export ?
++	       cfs_atomic_read(&lock->l_export->exp_refcount) : -99,
++	       lock->l_pid, lock->l_callback_timeout);
++	  return;
++	  
+ 	case LDLM_IBITS:
+-		libcfs_debug_vmsg2(msgdata, fmt, args,
+-			" ns: %s lock: %p/"LPX64" lrc: %d/%d,%d mode: %s/%s "
+-			"res: "DLDLMRES" bits "LPX64" rrc: %d type: %s "
+-			"flags: "LPX64" nid: %s remote: "LPX64" expref: %d "
+-			"pid: %u timeout: %lu lvb_type: %d\n",
+-			ldlm_lock_to_ns_name(lock),
+-			lock, lock->l_handle.h_cookie,
+-			cfs_atomic_read(&lock->l_refc),
+-			lock->l_readers, lock->l_writers,
+-			ldlm_lockname[lock->l_granted_mode],
+-			ldlm_lockname[lock->l_req_mode],
+-			PLDLMRES(resource),
+-			lock->l_policy_data.l_inodebits.bits,
+-			cfs_atomic_read(&resource->lr_refcount),
+-			ldlm_typename[resource->lr_type],
+-			lock->l_flags, nid, lock->l_remote_handle.cookie,
+-			exp ? cfs_atomic_read(&exp->exp_refcount) : -99,
+-			lock->l_pid, lock->l_callback_timeout,
+-			lock->l_lvb_type);
+-		break;
+-
++	  _MSG(" ns: %s lock: %p/"LPX64" lrc: %d/%d,%d mode: %s/%s "
++	       "res: "LPU64"/"LPU64" bits "LPX64" rrc: %d type: %s "
++	       "flags: "LPX64" remote: "LPX64" expref: %d "
++	       "pid: %u timeout: %lu\n",
++	       ldlm_lock_to_ns_name(lock),
++	       lock, lock->l_handle.h_cookie,
++	       cfs_atomic_read (&lock->l_refc),
++	       lock->l_readers, lock->l_writers,
++	       ldlm_lockname[lock->l_granted_mode],
++	       ldlm_lockname[lock->l_req_mode],
++	       lock->l_resource->lr_name.name[0],
++	       lock->l_resource->lr_name.name[1],
++	       lock->l_policy_data.l_inodebits.bits,
++	       cfs_atomic_read(&lock->l_resource->lr_refcount),
++	       ldlm_typename[lock->l_resource->lr_type],
++	       lock->l_flags, lock->l_remote_handle.cookie,
++	       lock->l_export ?
++	       cfs_atomic_read(&lock->l_export->exp_refcount) : -99,
++	       lock->l_pid, lock->l_callback_timeout);
++	  return;
++	  
+ 	default:
+-		libcfs_debug_vmsg2(msgdata, fmt, args,
+-			" ns: %s lock: %p/"LPX64" lrc: %d/%d,%d mode: %s/%s "
+-			"res: "DLDLMRES" rrc: %d type: %s flags: "LPX64" "
+-			"nid: %s remote: "LPX64" expref: %d pid: %u "
+-			"timeout: %lu lvb_type: %d\n",
+-			ldlm_lock_to_ns_name(lock),
+-			lock, lock->l_handle.h_cookie,
+-			cfs_atomic_read(&lock->l_refc),
+-			lock->l_readers, lock->l_writers,
+-			ldlm_lockname[lock->l_granted_mode],
+-			ldlm_lockname[lock->l_req_mode],
+-			PLDLMRES(resource),
+-			cfs_atomic_read(&resource->lr_refcount),
+-			ldlm_typename[resource->lr_type],
+-			lock->l_flags, nid, lock->l_remote_handle.cookie,
+-			exp ? cfs_atomic_read(&exp->exp_refcount) : -99,
+-			lock->l_pid, lock->l_callback_timeout,
+-			lock->l_lvb_type);
+-		break;
++	  _MSG(" ns: %s lock: %p/"LPX64" lrc: %d/%d,%d mode: %s/%s "
++	       "res: "LPU64"/"LPU64" rrc: %d type: %s flags: "LPX64" "
++	       "remote: "LPX64" expref: %d pid: %u timeout %lu\n",
++	       ldlm_lock_to_ns_name(lock),
++	       lock, lock->l_handle.h_cookie,
++	       cfs_atomic_read (&lock->l_refc),
++	       lock->l_readers, lock->l_writers,
++	       ldlm_lockname[lock->l_granted_mode],
++	       ldlm_lockname[lock->l_req_mode],
++	       lock->l_resource->lr_name.name[0],
++	       lock->l_resource->lr_name.name[1],
++	       cfs_atomic_read(&lock->l_resource->lr_refcount),
++	       ldlm_typename[lock->l_resource->lr_type],
++	       lock->l_flags, lock->l_remote_handle.cookie,
++	       lock->l_export ?
++	       cfs_atomic_read(&lock->l_export->exp_refcount) : -99,
++	       lock->l_pid, lock->l_callback_timeout);
++	  return;
+ 	}
+-	va_end(args);
++
+ }
+-EXPORT_SYMBOL(_ldlm_lock_debug);
++EXPORT_SYMBOL(ldlm_debug_msg);
+Binary files lustre_backup/lustre/llite/llite_lloop.ko.unsigned and lustre-release/lustre/llite/llite_lloop.ko.unsigned differ
+Binary files lustre_backup/lustre/llite/lustre.ko.unsigned and lustre-release/lustre/llite/lustre.ko.unsigned differ
+diff -urN lustre_backup/lustre/llite/modules.order lustre-release/lustre/llite/modules.order
+--- lustre_backup/lustre/llite/modules.order	1969-12-31 18:00:00.000000000 -0600
++++ lustre-release/lustre/llite/modules.order	2014-01-06 14:08:02.210393995 -0600
+@@ -0,0 +1,2 @@
++kernel//home/rtevans/build/lustre-release/lustre/llite/lustre.ko
++kernel//home/rtevans/build/lustre-release/lustre/llite/llite_lloop.ko
+Binary files lustre_backup/lustre/lmv/lmv.ko.unsigned and lustre-release/lustre/lmv/lmv.ko.unsigned differ
+diff -urN lustre_backup/lustre/lmv/modules.order lustre-release/lustre/lmv/modules.order
+--- lustre_backup/lustre/lmv/modules.order	1969-12-31 18:00:00.000000000 -0600
++++ lustre-release/lustre/lmv/modules.order	2014-01-06 14:08:02.346461996 -0600
+@@ -0,0 +1 @@
++kernel//home/rtevans/build/lustre-release/lustre/lmv/lmv.ko
+Binary files lustre_backup/lustre/lod/lod.ko.unsigned and lustre-release/lustre/lod/lod.ko.unsigned differ
+diff -urN lustre_backup/lustre/lod/modules.order lustre-release/lustre/lod/modules.order
+--- lustre_backup/lustre/lod/modules.order	1969-12-31 18:00:00.000000000 -0600
++++ lustre-release/lustre/lod/modules.order	2014-01-06 14:08:02.551564494 -0600
+@@ -0,0 +1 @@
++kernel//home/rtevans/build/lustre-release/lustre/lod/lod.ko
+Binary files lustre_backup/lustre/lov/lov.ko.unsigned and lustre-release/lustre/lov/lov.ko.unsigned differ
+diff -urN lustre_backup/lustre/lov/modules.order lustre-release/lustre/lov/modules.order
+--- lustre_backup/lustre/lov/modules.order	1969-12-31 18:00:00.000000000 -0600
++++ lustre-release/lustre/lov/modules.order	2014-01-06 14:08:02.795686495 -0600
+@@ -0,0 +1 @@
++kernel//home/rtevans/build/lustre-release/lustre/lov/lov.ko
+Binary files lustre_backup/lustre/lvfs/fsfilt_ldiskfs.ko.unsigned and lustre-release/lustre/lvfs/fsfilt_ldiskfs.ko.unsigned differ
+Binary files lustre_backup/lustre/lvfs/lvfs.ko.unsigned and lustre-release/lustre/lvfs/lvfs.ko.unsigned differ
+diff -urN lustre_backup/lustre/lvfs/modules.order lustre-release/lustre/lvfs/modules.order
+--- lustre_backup/lustre/lvfs/modules.order	1969-12-31 18:00:00.000000000 -0600
++++ lustre-release/lustre/lvfs/modules.order	2014-01-06 14:08:02.861719494 -0600
+@@ -0,0 +1,2 @@
++kernel//home/rtevans/build/lustre-release/lustre/lvfs/lvfs.ko
++kernel//home/rtevans/build/lustre-release/lustre/lvfs/fsfilt_ldiskfs.ko
+Binary files lustre_backup/lustre/mdc/mdc.ko.unsigned and lustre-release/lustre/mdc/mdc.ko.unsigned differ
+diff -urN lustre_backup/lustre/mdc/modules.order lustre-release/lustre/mdc/modules.order
+--- lustre_backup/lustre/mdc/modules.order	1969-12-31 18:00:00.000000000 -0600
++++ lustre-release/lustre/mdc/modules.order	2014-01-06 14:08:02.993785494 -0600
+@@ -0,0 +1 @@
++kernel//home/rtevans/build/lustre-release/lustre/mdc/mdc.ko
+Binary files lustre_backup/lustre/mdd/mdd.ko.unsigned and lustre-release/lustre/mdd/mdd.ko.unsigned differ
+diff -urN lustre_backup/lustre/mdd/modules.order lustre-release/lustre/mdd/modules.order
+--- lustre_backup/lustre/mdd/modules.order	1969-12-31 18:00:00.000000000 -0600
++++ lustre-release/lustre/mdd/modules.order	2014-01-06 14:08:03.159868494 -0600
+@@ -0,0 +1 @@
++kernel//home/rtevans/build/lustre-release/lustre/mdd/mdd.ko
+Binary files lustre_backup/lustre/mdt/mdt.ko.unsigned and lustre-release/lustre/mdt/mdt.ko.unsigned differ
+diff -urN lustre_backup/lustre/mdt/modules.order lustre-release/lustre/mdt/modules.order
+--- lustre_backup/lustre/mdt/modules.order	1969-12-31 18:00:00.000000000 -0600
++++ lustre-release/lustre/mdt/modules.order	2014-01-06 14:08:03.228902994 -0600
+@@ -0,0 +1 @@
++kernel//home/rtevans/build/lustre-release/lustre/mdt/mdt.ko
+Binary files lustre_backup/lustre/mgc/mgc.ko.unsigned and lustre-release/lustre/mgc/mgc.ko.unsigned differ
+diff -urN lustre_backup/lustre/mgc/modules.order lustre-release/lustre/mgc/modules.order
+--- lustre_backup/lustre/mgc/modules.order	1969-12-31 18:00:00.000000000 -0600
++++ lustre-release/lustre/mgc/modules.order	2014-01-06 14:08:03.209893494 -0600
+@@ -0,0 +1 @@
++kernel//home/rtevans/build/lustre-release/lustre/mgc/mgc.ko
+Binary files lustre_backup/lustre/mgs/mgs.ko.unsigned and lustre-release/lustre/mgs/mgs.ko.unsigned differ
+diff -urN lustre_backup/lustre/mgs/modules.order lustre-release/lustre/mgs/modules.order
+--- lustre_backup/lustre/mgs/modules.order	1969-12-31 18:00:00.000000000 -0600
++++ lustre-release/lustre/mgs/modules.order	2014-01-06 14:08:03.312944994 -0600
+@@ -0,0 +1 @@
++kernel//home/rtevans/build/lustre-release/lustre/mgs/mgs.ko
+diff -urN lustre_backup/lustre/obdclass/capa.c lustre-release/lustre/obdclass/capa.c
+--- lustre_backup/lustre/obdclass/capa.c	2013-12-17 13:20:46.369296203 -0600
++++ lustre-release/lustre/obdclass/capa.c	2013-12-19 10:54:15.350633946 -0600
+@@ -398,13 +398,13 @@
+ {
+         va_list args;
+         va_start(args, fmt);
+-        libcfs_debug_vmsg2(msgdata, fmt, args,
+-                           " capability@%p fid "DFID" opc "LPX64" uid "LPU64
+-                           " gid "LPU64" flags %u alg %d keyid %u timeout %u "
+-                           "expiry %u\n", c, PFID(capa_fid(c)), capa_opc(c),
+-                           capa_uid(c), capa_gid(c), capa_flags(c),
+-                           capa_alg(c), capa_keyid(c), capa_timeout(c),
+-                           capa_expiry(c));
++        libcfs_debug_msg2(msgdata, fmt, args,
++			  " capability@%p fid "DFID" opc "LPX64" uid "LPU64
++			  " gid "LPU64" flags %u alg %d keyid %u timeout %u "
++			  "expiry %u\n", c, PFID(capa_fid(c)), capa_opc(c),
++			  capa_uid(c), capa_gid(c), capa_flags(c),
++			  capa_alg(c), capa_keyid(c), capa_timeout(c),
++			  capa_expiry(c));
+         va_end(args);
+ }
+ EXPORT_SYMBOL(_debug_capa);
+Binary files lustre_backup/lustre/obdclass/llog_test.ko.unsigned and lustre-release/lustre/obdclass/llog_test.ko.unsigned differ
+diff -urN lustre_backup/lustre/obdclass/lu_object.c lustre-release/lustre/obdclass/lu_object.c
+--- lustre_backup/lustre/obdclass/lu_object.c	2013-12-17 13:20:46.383303204 -0600
++++ lustre-release/lustre/obdclass/lu_object.c	2013-12-19 10:53:37.944633989 -0600
+@@ -457,7 +457,7 @@
+                   ARRAY_SIZE(key->lck_area) - used, format, args);
+         if (complete) {
+                 if (cfs_cdebug_show(msgdata->msg_mask, msgdata->msg_subsys))
+-                        libcfs_debug_msg(msgdata, "%s", key->lck_area);
++		  libcfs_debug_msg(msgdata, "%s", key->lck_area);
+                 key->lck_area[0] = 0;
+         }
+         va_end(args);
+diff -urN lustre_backup/lustre/obdclass/modules.order lustre-release/lustre/obdclass/modules.order
+--- lustre_backup/lustre/obdclass/modules.order	1969-12-31 18:00:00.000000000 -0600
++++ lustre-release/lustre/obdclass/modules.order	2014-01-06 14:08:03.931253994 -0600
+@@ -0,0 +1,2 @@
++kernel//home/rtevans/build/lustre-release/lustre/obdclass/obdclass.ko
++kernel//home/rtevans/build/lustre-release/lustre/obdclass/llog_test.ko
+Binary files lustre_backup/lustre/obdclass/obdclass.ko.unsigned and lustre-release/lustre/obdclass/obdclass.ko.unsigned differ
+diff -urN lustre_backup/lustre/obdecho/modules.order lustre-release/lustre/obdecho/modules.order
+--- lustre_backup/lustre/obdecho/modules.order	1969-12-31 18:00:00.000000000 -0600
++++ lustre-release/lustre/obdecho/modules.order	2014-01-06 14:08:03.421999494 -0600
+@@ -0,0 +1 @@
++kernel//home/rtevans/build/lustre-release/lustre/obdecho/obdecho.ko
+Binary files lustre_backup/lustre/obdecho/obdecho.ko.unsigned and lustre-release/lustre/obdecho/obdecho.ko.unsigned differ
+diff -urN lustre_backup/lustre/ofd/modules.order lustre-release/lustre/ofd/modules.order
+--- lustre_backup/lustre/ofd/modules.order	1969-12-31 18:00:00.000000000 -0600
++++ lustre-release/lustre/ofd/modules.order	2014-01-06 14:08:03.658117494 -0600
+@@ -0,0 +1 @@
++kernel//home/rtevans/build/lustre-release/lustre/ofd/ofd.ko
+Binary files lustre_backup/lustre/ofd/ofd.ko.unsigned and lustre-release/lustre/ofd/ofd.ko.unsigned differ
+diff -urN lustre_backup/lustre/osc/modules.order lustre-release/lustre/osc/modules.order
+--- lustre_backup/lustre/osc/modules.order	1969-12-31 18:00:00.000000000 -0600
++++ lustre-release/lustre/osc/modules.order	2014-01-06 14:08:03.830203493 -0600
+@@ -0,0 +1 @@
++kernel//home/rtevans/build/lustre-release/lustre/osc/osc.ko
+Binary files lustre_backup/lustre/osc/osc.ko.unsigned and lustre-release/lustre/osc/osc.ko.unsigned differ
+diff -urN lustre_backup/lustre/osd-ldiskfs/modules.order lustre-release/lustre/osd-ldiskfs/modules.order
+--- lustre_backup/lustre/osd-ldiskfs/modules.order	1969-12-31 18:00:00.000000000 -0600
++++ lustre-release/lustre/osd-ldiskfs/modules.order	2014-01-06 14:08:04.034305493 -0600
+@@ -0,0 +1 @@
++kernel//home/rtevans/build/lustre-release/lustre/osd-ldiskfs/osd_ldiskfs.ko
+Binary files lustre_backup/lustre/osd-ldiskfs/osd_ldiskfs.ko.unsigned and lustre-release/lustre/osd-ldiskfs/osd_ldiskfs.ko.unsigned differ
+diff -urN lustre_backup/lustre/osp/modules.order lustre-release/lustre/osp/modules.order
+--- lustre_backup/lustre/osp/modules.order	1969-12-31 18:00:00.000000000 -0600
++++ lustre-release/lustre/osp/modules.order	2014-01-06 14:08:04.076326494 -0600
+@@ -0,0 +1 @@
++kernel//home/rtevans/build/lustre-release/lustre/osp/osp.ko
+Binary files lustre_backup/lustre/osp/osp.ko.unsigned and lustre-release/lustre/osp/osp.ko.unsigned differ
+diff -urN lustre_backup/lustre/ost/modules.order lustre-release/lustre/ost/modules.order
+--- lustre_backup/lustre/ost/modules.order	1969-12-31 18:00:00.000000000 -0600
++++ lustre-release/lustre/ost/modules.order	2014-01-06 14:08:04.106341494 -0600
+@@ -0,0 +1 @@
++kernel//home/rtevans/build/lustre-release/lustre/ost/ost.ko
+Binary files lustre_backup/lustre/ost/ost.ko.unsigned and lustre-release/lustre/ost/ost.ko.unsigned differ
+diff -urN lustre_backup/lustre/ptlrpc/modules.order lustre-release/lustre/ptlrpc/modules.order
+--- lustre_backup/lustre/ptlrpc/modules.order	1969-12-31 18:00:00.000000000 -0600
++++ lustre-release/lustre/ptlrpc/modules.order	2014-01-06 14:08:04.534555493 -0600
+@@ -0,0 +1 @@
++kernel//home/rtevans/build/lustre-release/lustre/ptlrpc/ptlrpc.ko
+diff -urN lustre_backup/lustre/ptlrpc/pack_generic.c lustre-release/lustre/ptlrpc/pack_generic.c
+--- lustre_backup/lustre/ptlrpc/pack_generic.c	2013-12-17 13:20:46.433328203 -0600
++++ lustre-release/lustre/ptlrpc/pack_generic.c	2013-12-19 11:15:37.577634022 -0600
+@@ -2419,27 +2419,43 @@
+         }
+ }
+ 
+-void _debug_req(struct ptlrpc_request *req,
+-                struct libcfs_debug_msg_data *msgdata,
+-                const char *fmt, ... )
+-{
+-        int req_ok = req->rq_reqmsg != NULL;
+-        int rep_ok = req->rq_repmsg != NULL;
+-        lnet_nid_t nid = LNET_NID_ANY;
+-        va_list args;
+-
+-        if (ptlrpc_req_need_swab(req)) {
+-                req_ok = req_ok && req_ptlrpc_body_swabbed(req);
+-                rep_ok = rep_ok && rep_ptlrpc_body_swabbed(req);
+-        }
+-
+-        if (req->rq_import && req->rq_import->imp_connection)
+-                nid = req->rq_import->imp_connection->c_peer.nid;
+-        else if (req->rq_export && req->rq_export->exp_connection)
+-                nid = req->rq_export->exp_connection->c_peer.nid;
++/* Spare the preprocessor, spoil the bugs. */
++#define FLAG(field, str) (field ? str : "")
+ 
+-        va_start(args, fmt);
+-        libcfs_debug_vmsg2(msgdata, fmt, args,
++#define DEBUG_REQ_FLAGS(req)			\
++  ptlrpc_rqphase2str(req),			      \
++    FLAG(req->rq_intr, "I"), FLAG(req->rq_replied, "R"),	\
++    FLAG(req->rq_err, "E"),					       \
++    FLAG(req->rq_timedout, "X") /* eXpired */, FLAG(req->rq_resend, "S"), \
++    FLAG(req->rq_restart, "T"), FLAG(req->rq_replay, "P"),		\
++    FLAG(req->rq_no_resend, "N"),					\
++    FLAG(req->rq_waiting, "W"), FLAG(req->rq_hp, "H")
++
++#define REQ_FLAGS_FMT "%s:%s%s%s%s%s%s%s%s%s%s"
++
++void debug_req_msg(struct ptlrpc_request *req, cfs_debug_limit_state_t *cdls,
++		   int subsys, int mask, const char *fmt1, ...)
++{
++  struct libcfs_debug_msg_data msgdata;
++  int req_ok = req->rq_reqmsg != NULL;
++  int rep_ok = req->rq_repmsg != NULL;
++  lnet_nid_t nid = LNET_NID_ANY;
++  va_list args1;
++  
++  if (ptlrpc_req_need_swab(req)) {
++    req_ok = req_ok && req_ptlrpc_body_swabbed(req);
++    rep_ok = rep_ok && rep_ptlrpc_body_swabbed(req);
++  }
++  
++  if (req->rq_import && req->rq_import->imp_connection)
++    nid = req->rq_import->imp_connection->c_peer.nid;
++  else if (req->rq_export && req->rq_export->exp_connection)
++    nid = req->rq_export->exp_connection->c_peer.nid;
++
++  LIBCFS_DEBUG_MSG_DATA_INIT(&msgdata, mask, cdls);
++ 
++  va_start(args1, fmt1);
++  libcfs_debug_msg2(&msgdata, fmt1, args1,
+                            " req@%p x"LPU64"/t"LPD64"("LPD64") o%d->%s@%s:%d/%d"
+                            " lens %d/%d e %d to %d dl "CFS_TIME_T" ref %d "
+                            "fl "REQ_FLAGS_FMT"/%x/%x rc %d/%d\n",
+@@ -2462,8 +2478,9 @@
+                            rep_ok ? lustre_msg_get_flags(req->rq_repmsg) : -1,
+                            req->rq_status,
+                            rep_ok ? lustre_msg_get_status(req->rq_repmsg) : -1);
++  va_end(args1);
+ }
+-EXPORT_SYMBOL(_debug_req);
++EXPORT_SYMBOL(debug_req_msg);
+ 
+ void lustre_swab_lustre_capa(struct lustre_capa *c)
+ {
+Binary files lustre_backup/lustre/ptlrpc/ptlrpc.ko.unsigned and lustre-release/lustre/ptlrpc/ptlrpc.ko.unsigned differ
+Binary files lustre_backup/lustre/quota/lquota.ko.unsigned and lustre-release/lustre/quota/lquota.ko.unsigned differ
+diff -urN lustre_backup/lustre/quota/modules.order lustre-release/lustre/quota/modules.order
+--- lustre_backup/lustre/quota/modules.order	1969-12-31 18:00:00.000000000 -0600
++++ lustre-release/lustre/quota/modules.order	2014-01-06 14:08:04.417496993 -0600
+@@ -0,0 +1 @@
++kernel//home/rtevans/build/lustre-release/lustre/quota/lquota.ko
+diff -urN lustre_backup/lustre/quota/qmt_entry.c lustre-release/lustre/quota/qmt_entry.c
+--- lustre_backup/lustre/quota/qmt_entry.c	2013-12-17 13:20:46.450336703 -0600
++++ lustre-release/lustre/quota/qmt_entry.c	2013-12-19 11:17:37.269634061 -0600
+@@ -115,7 +115,7 @@
+ {
+ 	struct qmt_pool_info	*pool = (struct qmt_pool_info *)arg;
+ 
+-	libcfs_debug_vmsg2(msgdata, fmt, args,
++	libcfs_debug_msg2(msgdata, fmt, args,
+ 			   "qmt:%s pool:%d-%s id:"LPU64" enforced:%d hard:"LPU64
+ 			   " soft:"LPU64" granted:"LPU64" time:"LPU64" qunit:"
+ 			   LPU64" edquot:%d may_rel:"LPU64" revoke:"LPU64"\n",
+diff -urN lustre_backup/lustre/quota/qsd_entry.c lustre-release/lustre/quota/qsd_entry.c
+--- lustre_backup/lustre/quota/qsd_entry.c	2013-12-17 13:20:46.451337203 -0600
++++ lustre-release/lustre/quota/qsd_entry.c	2013-12-19 11:16:53.333634018 -0600
+@@ -141,16 +141,16 @@
+ {
+ 	struct qsd_qtype_info	*qqi = (struct qsd_qtype_info *)arg;
+ 
+-	libcfs_debug_vmsg2(msgdata, fmt, args,
+-			   "qsd:%s qtype:%s id:"LPU64" enforced:%d granted:"
+-			   LPU64" pending:"LPU64" waiting:"LPU64" req:%d usage:"
+-			   LPU64" qunit:"LPU64" qtune:"LPU64" edquot:%d\n",
+-			   qqi->qqi_qsd->qsd_svname, QTYPE_NAME(qqi->qqi_qtype),
+-			   lqe->lqe_id.qid_uid, lqe->lqe_enforced,
+-			   lqe->lqe_granted, lqe->lqe_pending_write,
+-			   lqe->lqe_waiting_write, lqe->lqe_pending_req,
+-			   lqe->lqe_usage, lqe->lqe_qunit, lqe->lqe_qtune,
+-			   lqe->lqe_edquot);
++	libcfs_debug_msg2(msgdata, fmt, args,
++		    "qsd:%s qtype:%s id:"LPU64" enforced:%d granted:"
++		    LPU64" pending:"LPU64" waiting:"LPU64" req:%d usage:"
++		    LPU64" qunit:"LPU64" qtune:"LPU64" edquot:%d\n",
++		    qqi->qqi_qsd->qsd_svname, QTYPE_NAME(qqi->qqi_qtype),
++		    lqe->lqe_id.qid_uid, lqe->lqe_enforced,
++		    lqe->lqe_granted, lqe->lqe_pending_write,
++		    lqe->lqe_waiting_write, lqe->lqe_pending_req,
++		    lqe->lqe_usage, lqe->lqe_qunit, lqe->lqe_qtune,
++		    lqe->lqe_edquot);
+ }
+ 
+ /*
+Binary files lustre_backup/lustre/utils/liblustreapi.so and lustre-release/lustre/utils/liblustreapi.so differ
+Binary files lustre_backup/lustre-iokit/lustre-iokit-1.4.0.tar.gz and lustre-release/lustre-iokit/lustre-iokit-1.4.0.tar.gz differ
