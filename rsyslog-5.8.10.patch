@@ -1,0 +1,74 @@
+diff -uNr /home/rtevans/rsyslog-5.8.10/plugins/imklog/imklog.c ./rsyslog-5.8.10/plugins/imklog/imklog.c
+--- /home/rtevans/rsyslog-5.8.10/plugins/imklog/imklog.c	2012-04-05 07:10:45.000000000 -0500
++++ ./rsyslog-5.8.10/plugins/imklog/imklog.c	2014-01-23 16:00:26.472278150 -0600
+@@ -172,7 +172,7 @@
+ 	pLogMsg = msgBuf;
+ 	va_end(ap);
+ 
+-	iRet = enqMsg((uchar*)pLogMsg, (uchar*) ((iFacilIntMsg == LOG_KERN) ? "kernel:" : "imklog:"),
++	iRet = enqMsg((uchar*)pLogMsg, (uchar*) ((iFacilIntMsg == LOG_KERN) ? "kernel" : "imklog:"),
+ 		      iFacilIntMsg, LOG_PRI(priority));
+ 
+ 	RETiRet;
+@@ -197,7 +197,7 @@
+ 	if(bPermitNonKernel == 0 && LOG_FAC(priority) != LOG_KERN)
+ 		FINALIZE; /* silently ignore */
+ 
+-	iRet = enqMsg((uchar*)pMsg, (uchar*) "kernel:", LOG_FAC(priority), LOG_PRI(priority));
++	iRet = enqMsg((uchar*)pMsg, (uchar*) "kernel", LOG_FAC(priority), LOG_PRI(priority));
+ 
+ finalize_it:
+ 	RETiRet;
+diff -uNr /home/rtevans/rsyslog-5.8.10/plugins/imklog/linux.c ./rsyslog-5.8.10/plugins/imklog/linux.c
+--- /home/rtevans/rsyslog-5.8.10/plugins/imklog/linux.c	2012-04-05 07:10:45.000000000 -0500
++++ ./rsyslog-5.8.10/plugins/imklog/linux.c	2014-01-23 15:59:03.776646706 -0600
+@@ -248,7 +248,7 @@
+         switch( parse_state )
+         {
+         case PARSING_TEXT:
+-               delta = copyin(line, space, ptr, len, "\n[" );
++               delta = copyin(line, space, ptr, len, "\n\0[" );
+                line  += delta;
+                ptr   += delta;
+                space -= delta;
+@@ -259,16 +259,23 @@
+ 		  break;  /* full line_buff or end of input buffer */
+                }
+ 
++	       if( *ptr == '\n' )  /* zero byte */
++		 {
++		   ptr++;	/* skip zero byte */
++		   space -= 1;
++		   len   -= 1;
++		 }
++
+                if( *ptr == '\0' )  /* zero byte */
+                {
+                   ptr++;	/* skip zero byte */
++		  *(line)='\n';
++		  line++;
+                   space -= 1;
+                   len   -= 1;
+-
+-		  break;
+ 	       }
+ 
+-               if( *ptr == '\n' )  /* newline */
++               if( *ptr == '\0' )  /* newline */
+                {
+                   ptr++;	/* skip newline */
+                   space -= 1;
+@@ -307,7 +314,7 @@
+                /* Now that line_buff is no longer fed to *printf as format
+                 * string, '%'s are no longer "dangerous".
+ 		*/
+-               break;
++               //break;
+         
+         case PARSING_SYMSTART:
+                if( *ptr != '<' )
+diff -uNr /home/rtevans/rsyslog-5.8.10/sudo ./rsyslog-5.8.10/sudo
+--- /home/rtevans/rsyslog-5.8.10/sudo	1969-12-31 18:00:00.000000000 -0600
++++ ./rsyslog-5.8.10/sudo	2014-01-23 16:06:57.408125566 -0600
+@@ -0,0 +1 @@
++testing tee /proc/rat-kmsg
